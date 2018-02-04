@@ -1,0 +1,16 @@
+#!/bin/sh
+
+sed -i 's/bvsub/-/g' $1
+sed -i 's/bvadd/+/g' $1
+sed -i 's/bvugt/>/g' $1
+sed -i 's/bvsgt/>/g' $1
+sed -i 's/bvuge/>=/g' $1
+sed -i 's/bvsge/>=/g' $1
+sed -i 's/bvule/<=/g' $1
+sed -i 's/bvsle/<=/g' $1
+sed -i 's/bvult/</g' $1
+sed -i 's/bvslt/</g' $1
+sed -i 's/(_ BitVec 64)/Int/g' $1
+sed -i 's/(_ bv0 64)/0/g' $1
+sed -i 's/(_ bv1 64)/1/g' $1
+sed -i 's/bvsub/-/g' $1

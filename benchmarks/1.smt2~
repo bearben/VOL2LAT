@@ -1,0 +1,80 @@
+(set-logic QF_LRA)
+(set-info :status sat)
+(declare-fun symbol_1 () Real)
+(declare-fun symbol_0 () Real)
+(declare-fun symbol_2 () Real)
+(declare-fun symbol_4 () Real)
+(declare-fun symbol_3 () Real)
+(declare-fun symbol_5 () Real)
+(declare-fun symbol_7 () Real)
+(declare-fun symbol_6 () Real)
+(declare-fun symbol_8 () Real)
+(declare-fun symbol_9 () Real)
+(declare-fun symbol_11 () Real)
+(declare-fun symbol_10 () Real)
+(declare-fun symbol_13 () Real)
+(declare-fun symbol_12 () Real)
+(declare-fun symbol_15 () Real)
+(declare-fun symbol_14 () Real)
+(declare-fun symbol_17 () Real)
+(declare-fun symbol_16 () Real)
+(declare-fun symbol_18 () Real)
+(declare-fun symbol_19 () Real)
+(declare-fun symbol_20 () Real)
+(declare-fun symbol_21 () Real)
+(declare-fun symbol_22 () Real)
+(assert
+ (> (- symbol_0 symbol_1) 0))
+(assert
+ (not (> (- symbol_3 symbol_4) 0)))
+(assert
+ (not (= symbol_5 0)))
+(assert
+ (not (> (- symbol_6 symbol_8) 0)))
+(assert
+ (not (< (- symbol_6 symbol_9) 0)))
+(assert
+ (not (<= (- symbol_10 symbol_11) 0)))
+(assert
+ (<= (- symbol_12 symbol_13) 0))
+(assert
+ (not (<= (- symbol_14 symbol_15) 0)))
+(assert
+ (not (> (- symbol_16 symbol_18) 0)))
+(assert
+ (not (< (- symbol_16 symbol_17) 0)))
+(assert
+ (not (<= (- symbol_18 symbol_16) 0)))
+(assert
+ (<= (- symbol_17 symbol_16) 0))
+(assert
+ (not (= 5 (- symbol_2 1))))
+(assert
+ (not (<= (- symbol_18 symbol_17) 0)))
+(assert
+ (not (>= 3 (- symbol_2 2))))
+(assert
+ (not (= (- symbol_2 3) 1)))
+(assert
+ (not (= 3 symbol_2)))
+(assert
+ (<= (- symbol_19 symbol_18) 0))
+(assert
+ (not (= 3 (- symbol_2 1))))
+(assert
+ (not (<= (- symbol_20 symbol_19) 0)))
+(assert
+ (not (= 2 (- symbol_2 1))))
+(assert
+ (not (<= (- symbol_21 symbol_20) 0)))
+(assert
+ (not (>= 0 (- symbol_2 2))))
+(assert
+ (not (= (- symbol_2 0) 1)))
+(assert
+ (not (> (- 64 symbol_22) 6)))
+(assert
+ (not (< symbol_2 64)))
+(assert
+ (not (<= symbol_2 1)))
+(check-sat)
