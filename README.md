@@ -45,6 +45,3 @@ Please contact:
 
 Enjoy!
 
-
-
-# VOL2LAT
