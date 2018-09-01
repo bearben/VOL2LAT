@@ -361,6 +361,7 @@ public:
 	//basic parameters
 	bool		enable_bunch;
 	bool 		enable_fact;
+	bool		enable_ge;
 	int 		wordlength;
 	
 	std::string resultdir;	// dir of temp results
@@ -379,6 +380,7 @@ public:
 				z3solver(z3context), 
 				enable_bunch(true),
 				enable_fact(true),
+				enable_ge(true),
 				wordlength(0),
 				resultdir(result_dir),
 				tooldir(tool_dir), 
@@ -511,9 +513,12 @@ private:
 	//data structure
 	unsigned int 	nVars;		// = vnum_list.size()
 	unsigned int	nFormulas;	// = ineq_list.size()
-	arma::mat		bigA;
-	arma::vec		bigb;
+	arma::mat		bigA;		// mat A for all inequalities
+	arma::vec		bigb;		// col B for all inequalities
 	int 			*bigop;
+	arma::mat		matA;		// submat A for volume routines
+	arma::vec		colb;		// subcol B for volume routines
+	int				*rowop;
 	std::vector<long> 	multiplier;	//multiplier of bool sol
 	std::vector<int*> 	bsols;		//bunches (assignments)
 	
@@ -611,11 +616,13 @@ private:
 	
 	// volume & lattice routine
 	void				vol_init();
+	void 				mat_init(int *bools, unsigned int nRows, std::vector<int> vars);
+	unsigned int		gauss_elimination();
 	const unsigned int 	get_decided_vars(int *bools, std::vector<int> &vars);
 	const bool 			merge_sols(int *source, int *target);
 	const unsigned int 	factorize_bsol(int *bools, std::vector<int*> &pbools);
 	//const bool			bound_checking(int *bools, unsigned int nRows, std::vector<int> vars);
-	const double 		bound_computation(int *bools, unsigned int nRows, std::vector<int> vars);
+	const double 		bound_computation();
 	const VOL_RES_CLS 	volume_estimation_basic(int *bools, unsigned int nRows, std::vector<int> vars, 
 								double epsilon, double delta, double coef);
 	const VOL_RES_CLS 	volume_estimation(int *boolsol, double epsilon, double delta, double coef);
