@@ -449,7 +449,7 @@ const volce::solver::dagc volce::solver::mk_div(const dagc l, const dagc r) {
 	if (solving_initialized) err_solving_initialized();
 
 	//check logic, enabled for LRA
-	if (!islra()) return mk_err(ERR_LOGIC);
+	//if (!islra()) return mk_err(ERR_LOGIC);
 
 	//check returned type
 	if (l.isbool() || r.isbool()) return mk_err(ERR_PARAM_NNUM);

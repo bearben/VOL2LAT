@@ -53,7 +53,7 @@ void printUsage(char* exec_name){
     cout << endl;
 	cout << "  -fact={0,1} \t   Enable (1) or disable (0) the factorization strategy." << endl;
 	cout << "              \t   It can be very efficient for problems whose variables " << endl;
-	cout << "              \t   are less connective. By default, this strategy is en-" << endl;
+	cout << "              \t   are less connective. By default, this strategy is dis-" << endl;
 	cout << "              \t   abled. " << endl;
     cout << endl;
 	cout << "  -verb={0,1} \t   The verbosity of output. Positive value will enable " << endl;
@@ -84,7 +84,8 @@ int main(int argc, char **argv) {
 	double 	maxc 		= 1;
 	double 	minc 		= 0.01;	// first round weight
 	bool	bunch		= true;
-	bool 	fact 		= true;
+	bool 	fact 		= false;
+	bool	ge			= true;
 	int 	verbosity 	= 1;
 
 	//auxiliary variables
@@ -100,22 +101,22 @@ int main(int argc, char **argv) {
     
  	////////////////////////////////////////////////////////////////////// 
     //parsing arguments
-    for (int i = 1; i < argc; i++){
+    for (int i = 1; i < argc; i++) {
     	string argument = argv[i];
     	int offset = argument.find('=');
     	string key = argument.substr(0, offset);
     	string value = argument.substr(offset + 1);
 
-		if (key == "-P" || key == "-p"){
+		if (key == "-P" || key == "-p") {
 			//PolyVest
 			polyvest = true;
-		}else if (key == "-V" || key == "-v"){
+		}else if (key == "-V" || key == "-v") {
 			//Vinci
 			vinci = true;
-		}else if (key == "-L" || key == "-l"){
+		}else if (key == "-L" || key == "-l") {
 			//LattE
 			latte = true;
-		}else if (key == "-W" || key == "-w"){
+		}else if (key == "-W" || key == "-w") {
 			//wordlength
 			try {
 				wordlength = stoi(value);
@@ -124,7 +125,7 @@ int main(int argc, char **argv) {
 				cout << "Use '-h' or '--help' for help." << endl;
 				exit(0);
 			}
-		}else if (key == "-epsilon"){
+		}else if (key == "-epsilon") {
 			// epsilon
 			try {
 				epsilon = stod(value);				
@@ -133,7 +134,7 @@ int main(int argc, char **argv) {
 				cout << "Use '-h' or '--help' for help." << endl;
 				exit(0);
 			}
-		}else if (key == "-delta"){
+		}else if (key == "-delta") {
 			// delta
 			try {
 				delta = stod(value);				
@@ -142,7 +143,7 @@ int main(int argc, char **argv) {
 				cout << "Use '-h' or '--help' for help." << endl;
 				exit(0);
 			}
-		}else if (key == "-frw"){
+		}else if (key == "-frw") {
 			//first round weight
 			try {
 				minc = stod(value);
@@ -151,7 +152,7 @@ int main(int argc, char **argv) {
 				cout << "Use '-h' or '--help' for help." << endl;
 				exit(0);
 			}
-		}else if (key == "-bunch"){
+		}else if (key == "-bunch") {
 			// disable bunch strategy
 			try {
 				bunch = stoi(value);
@@ -160,8 +161,8 @@ int main(int argc, char **argv) {
 				cout << "Use '-h' or '--help' for help." << endl;
 				exit(0);
 			}
-		}else if (key == "-fact"){
-			//disable factorization
+		} else if (key == "-fact") {
+			// enable factorization
 			try {
 				fact = stoi(value);
 			}catch (const invalid_argument&){
@@ -169,7 +170,16 @@ int main(int argc, char **argv) {
 				cout << "Use '-h' or '--help' for help." << endl;
 				exit(0);
 			}
-		}else if (key == "-verb"){
+		} else if (key == "-ge") {
+			// disable gauss elimination
+			try {
+				ge = stoi(value);
+			}catch (const invalid_argument&){
+				cout << "error: Invalid value \"" << value << "\" for argument \"" << key << "\"." << endl;
+				cout << "Use '-h' or '--help' for help." << endl;
+				exit(0);
+			}
+		} else if (key == "-verb") {
 			//set verbosity
 			try{
 				verbosity = stoi(value);
@@ -179,11 +189,11 @@ int main(int argc, char **argv) {
 				cout << "Use '-h' or '--help' for help." << endl;
 				exit(0);
 			}
-		}else if (key == "-h" || key == "--help"){
+		} else if (key == "-h" || key == "--help") {
 			//help
 			printUsage(argv[0]);
 			return 0;
-		}else{
+		} else {
 			if (input_file == "")
 				input_file = argv[i];
 			else if (output_file == "")
@@ -279,6 +289,12 @@ int main(int argc, char **argv) {
 		cout << "-fact=1\t\tConstraints factorization turned on." << endl;
 	}
 	
+	if (!ge) {
+		cout << "-ge=0\t\tGauss Elimination turned off." << endl;
+	}else{
+		cout << "-ge=1\t\tGauss Elimination turned on." << endl;
+	}
+	
 	if (!verbosity) {
 		cout << "-verb=0\t\tPretty print turned off." << endl;
 	} else {
@@ -330,6 +346,7 @@ int main(int argc, char **argv) {
 	volce::solver s(execdir, bindir, input_file);
 	s.enable_bunch = bunch;
 	s.enable_fact = fact;
+	s.enable_ge = ge;
 	s.wordlength = wordlength;
 
 	if (verbosity > 0) {
@@ -373,7 +390,8 @@ int main(int argc, char **argv) {
   		
   		//print to output
   		ofstream fout(output_file, std::ios::app);
-		fout << input_file << " unsat" << endl;
+		fout //<< input_file 
+			<< " unsat" << endl;
 	  	fout.close();	
 
 		return 1;
@@ -468,18 +486,20 @@ int main(int argc, char **argv) {
   		
  	  	for (unsigned int i = 0; i < s.bunch_list.size(); i++){
  	  		
- 	  		if (vol[i].value == 0) continue;
+ 	  		if (vol[i].value != 0) {
  	  		
- 	  		double coef = cal_coef(vol[i].value, maxvol, minc, maxc);
+	 	  		double coef = cal_coef(vol[i].value, maxvol, minc, maxc);
+	 	  		
+	 	  		if (coef > minc){
  	  		
- 	  		if (coef > minc){
- 	  		
-	  			vol[i] = s.call_polyvest(i, epsilon, delta, coef);
+		  			vol[i] = s.call_polyvest(i, epsilon, delta, coef);
 	  			
-  				if (verbosity > 0) { 
-  					cout << i + 1 << "\t" << coef << "\t" << vol[i].value << '\t' << vol[i].upper << '\t' << vol[i].lower << endl;
-  				}
-  			}
+	  				if (verbosity > 0) { 
+	  					cout << i + 1 << "\t" << coef << "\t" << vol[i].value << '\t' << vol[i].upper << '\t' << vol[i].lower << endl;
+	  				}
+	  			}
+			}
+
 			total_polyvest = total_polyvest + vol[i];
 			
   		}
@@ -503,12 +523,12 @@ int main(int argc, char **argv) {
   	cout << endl << "====================================" << endl << endl;
   	if (latte) cout << "The total count (LattE): " << total_latte << endl;
   	if (vinci) {
-  		cout << "The total volume (Vinci): " << total_vinci.value << endl;
-  		cout << "The bound of number of inner lattices: [" << total_vinci.lower << ", " << total_vinci.upper << "]\n";
+  		cout << "The total approx count (Vinci): " << total_vinci.value << endl;
+  		cout << "The bound of approximation: [" << total_vinci.lower << ", " << total_vinci.upper << "]\n";
   	}
   	if (polyvest) {
-  		cout << "The total volume (PolyVest): " << total_polyvest.value << endl;
-  		cout << "The bound of number of inner lattices: [" << total_polyvest.lower << ", " << total_polyvest.upper << "]\n";
+  		cout << "The total approx count (PolyVest): " << total_polyvest.value << endl;
+  		cout << "The bound of approximation: [" << total_polyvest.lower << ", " << total_polyvest.upper << "]\n";
   	}
   	cout << endl << "====================================" << endl << endl;
   	

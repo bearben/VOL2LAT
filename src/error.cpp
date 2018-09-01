@@ -165,21 +165,21 @@ void volce::solver::err_unbounded_polytope() const {
 
 //logic not support latte
 void volce::solver::err_logic_latte() const {
-	std::cout << "warning: Logic does not match LattE." << std::endl;
+	//std::cout << "warning: Logic does not match LattE." << std::endl;
 	//std::cout << "Use '-h' or '--help' for help." << std::endl;
 	//exit(0);
 }
 
 //logic not support vinci
 void volce::solver::err_logic_vinci() const {
-	std::cout << "warning: Logic does not match Vinci." << std::endl;
+	//std::cout << "warning: Logic does not match Vinci." << std::endl;
 	//std::cout << "Use '-h' or '--help' for help." << std::endl;
 	//exit(0);
 }
 
 //logic not support polyvest
 void volce::solver::err_logic_polyvest() const {
-	std::cout << "warning: Logic does not match PolyVest." << std::endl;
+	//std::cout << "warning: Logic does not match PolyVest." << std::endl;
 	//std::cout << "Use '-h' or '--help' for help." << std::endl;
 	//exit(0);
 }

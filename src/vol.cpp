@@ -22,7 +22,7 @@ bool check_all_zeros(arma::rowvec r) {
 //////////////////////////////////////////////////////////////////////
 //// Initialization //////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////
-void volce::solver::vol_init(){
+void volce::solver::vol_init() {
 
 	nVars = vnum_list.size();
 	nFormulas = ineq_list.size();
@@ -46,6 +46,144 @@ void volce::solver::vol_init(){
 		}
 		bigb(i) = ie.get_const_r();
 	}
+
+}
+
+void volce::solver::mat_init(int *bools, unsigned int nRows, std::vector<int> vars) {
+
+	unsigned int nVars = vars.size();
+	unsigned int counter = 0;
+
+	if (wordlength > 0) {
+		nRows += 2 * nVars;
+		matA.set_size(nRows, nVars);
+		colb.set_size(nRows);
+		rowop = new int[nRows];
+		
+		// wordlength bounds
+		for (unsigned int i = 0; i < nVars; i++) {
+			matA(counter, i) = 1;
+			colb(counter) = pow(2, wordlength - 1) - 1;
+			rowop[counter] = -10;
+			counter++;
+			
+			matA(counter, i) = 1;
+			colb(counter) = -pow(2, wordlength - 1);
+			rowop[counter] = 10;
+			counter++;
+		}
+		
+	} else {
+		matA.set_size(nRows, nVars);
+		colb.set_size(nRows);
+		rowop = new int[nRows];		
+	}
+	
+	// inequalities
+	for(unsigned int i = 0; i < nFormulas; i++) {
+		if (bools[i] < 0) continue;
+			
+		if ((bigop[i] == 1 && bools[i] == 1) || (bigop[i] == -10 && bools[i] == 0)) {
+			// >
+			rowop[counter] = 1;
+		} else if ((bigop[i] == 10 && bools[i] == 1) || (bigop[i] == -1 && bools[i] == 0)) {
+			// >=
+			rowop[counter] = 10;			
+		} else if ((bigop[i] == -1 && bools[i] == 1) || (bigop[i] == 10 && bools[i] == 0)) {
+			// <
+			rowop[counter] = -1;
+		} else if ((bigop[i] == -10 && bools[i] == 1) || (bigop[i] == 1 && bools[i] == 0)) {
+			// <=
+			rowop[counter] = -10;
+		} else 
+			assert(bigop[i] != 0);
+		
+		for (unsigned int j = 0; j < nVars; j++)
+			matA(counter, j) = bigA(i, vars[j]);
+		colb(counter) = bigb(i);
+
+		bool redundent = false;
+		
+		if (enable_ge) {
+			for (unsigned int j = 0; j < counter; j++){
+				if (check_all_zeros(matA.row(counter) - matA.row(j)) && colb(counter) - colb(j) == 0) {
+					if (rowop[counter] == rowop[j]) {
+						redundent = true;
+					} else if (rowop[counter] * rowop[j] == -100) {
+						// one is <=, another one is >=
+						redundent = true;
+						rowop[j] = 0;
+					}
+				}
+				if (check_all_zeros(matA.row(counter) + matA.row(j)) && colb(counter) + colb(j) == 0) {
+					if (rowop[counter] + rowop[j] == 0) {
+						redundent = true;
+					} else if (rowop[counter] * rowop[j] == 100) {
+						redundent = true;
+						rowop[j] = 0;
+					}
+				}
+			}
+		}
+		if (!redundent) counter++;
+	}
+	
+	if (counter < nRows) {
+		matA.resize(counter, nVars);
+		colb.resize(counter);
+	}
+	
+}
+
+
+//////////////////////////////////////////////////////////////////////
+//// Gauss Elimination ///////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////
+unsigned int volce::solver::gauss_elimination() {
+
+	if (!enable_ge) return matA.n_cols;
+
+	unsigned int counter = 0;
+
+	for (unsigned int eqid = 0; eqid < matA.n_rows; ) {
+		if (rowop[eqid] != 0){
+			eqid++;
+			continue;
+		}
+		
+		// find first non-zero element
+		unsigned int nzid = 0;
+		for (unsigned int i = 0; i < matA.n_cols; i++)
+			if (matA(eqid, i) != 0) {
+				nzid = i;
+				break;
+			}
+			
+		//std::cout << eqid << ' ' << nzid << std::endl;
+
+		for (unsigned int i = 0; i < matA.n_rows; i++) {
+			if (eqid != i) {
+				double coef = matA(i, nzid) / matA(eqid, nzid);
+				matA.row(i) -= coef * matA.row(eqid);
+				colb(i) -= coef * colb(eqid);
+			}
+		}
+		
+		matA.shed_row(eqid);
+		matA.shed_col(nzid);
+		colb.shed_row(eqid);
+		for (unsigned int i = eqid; i < matA.n_rows; i++){
+			rowop[i] = rowop[i + 1];
+		}
+		
+		counter++;
+	}
+
+	if (counter > 0) {
+		std::cout << "Gauss Elimination: " << counter << " variables." << std::endl;
+	}
+	
+	return matA.n_cols;
 
 }
 
@@ -129,99 +267,14 @@ const unsigned int volce::solver::factorize_bsol(int *bools, std::vector<int*> &
 	return pbools.size();
 }
 
-/*
-//bound checking for each call
-//employing linear programming
-const bool volce::solver::bound_checking(int *bools, unsigned int nRows, std::vector<int> vars) {
-
-	unsigned int nVars = vars.size();
-	unsigned int counter = 0;
-
-	//init GLPK
-	glp_prob *lp;
-	lp = glp_create_prob();
-	glp_set_obj_dir(lp, GLP_MAX);
-	glp_add_rows(lp, nRows);
-	glp_add_cols(lp, nVars);
-
-	//disable msg output
-	glp_smcp parm;
-	glp_init_smcp(&parm);
-	parm.msg_lev = GLP_MSG_ERR;
-
-	//load constraints
-	int *ind = new int[nVars + 1];
-	double *val = new double[nVars + 1];
-	
-	for(unsigned int i = 0; i < nFormulas; i++){
-		if (bools[i] < 0) continue;
-		else counter++;
-		
-		int cmp = bigop[i];
-		assert(cmp != 0);
-
-		//insert one row		
-		if ((cmp > 0 && bools[i] == 1) || (cmp < 0 && bools[i] == 0)) {
-			for (unsigned int j = 0; j < nVars; j++) {
-				ind[j + 1] = j + 1;
-				val[j + 1] = bigA(i, vars[j]);
-				//std::cout << bigA(i, vars[j]) << ' ';
-			}
-			glp_set_mat_row(lp, counter, nVars, ind, val);
-			glp_set_row_bnds(lp, counter, GLP_LO, bigb[i], 0);
-			//std::cout << "LO ";
-			//std::cout << bigb[i] << std::endl;
-		} else {
-			for (unsigned int j = 0; j < nVars; j++) {
-				ind[j + 1] = j + 1;
-				val[j + 1] = bigA(i, vars[j]);
-				//std::cout << bigA(i, vars[j]) << ' ';
-			}
-			glp_set_mat_row(lp, counter, nVars, ind, val);
-			glp_set_row_bnds(lp, counter, GLP_UP, 0, bigb[i]);
-			//std::cout << "UP ";
-			//std::cout << bigb[i] << std::endl;
-		}
-	}
-	assert(counter == nRows);
-	delete []ind, delete []val;
-	for (unsigned int i = 1; i < nVars + 1; i++)
-		glp_set_col_bnds(lp, i, GLP_FR, 0, 0);
-
-	//set obj and apply simplex method
-	for (unsigned int j = 1; j < nVars + 1; j++) 
-		glp_set_obj_coef(lp, j, 1);
-	glp_simplex(lp, &parm);
-	
-	if (glp_get_status(lp) == GLP_UNBND){
-		//no upper bound
-		glp_delete_prob(lp);
-		return false;
-	}
-
-	for (unsigned int j = 1; j < nVars + 1; j++) 
-		glp_set_obj_coef(lp, j, -1);
-	glp_simplex(lp, &parm);
-	
-	if (glp_get_status(lp) == GLP_UNBND){
-		//no lower bound
-		glp_delete_prob(lp);
-		return false;
-	}
-
-	glp_delete_prob(lp);
-	return true;
-
-}
-*/
 
 //bound checking for each call
 //employing linear programming
 //compute the error between the volume and the number of lattices
-const double volce::solver::bound_computation(int *bools, unsigned int nRows, std::vector<int> vars) {
+const double volce::solver::bound_computation() {
 
-	unsigned int nVars = vars.size();
-	unsigned int counter = 0;
+	unsigned int nVars = matA.n_cols;
+	unsigned int nRows = matA.n_rows;
 	std::vector<double> max(nVars, 0);
 	std::vector<double> min(nVars, 0);
 
@@ -241,43 +294,35 @@ const double volce::solver::bound_computation(int *bools, unsigned int nRows, st
 	int *ind = new int[nVars + 1];
 	double *val = new double[nVars + 1];
 	
-	for(unsigned int i = 0; i < nFormulas; i++){
-		if (bools[i] < 0) continue;
-		else counter++;
+	for(unsigned int i = 0; i < nRows; i++){
 		
-		int cmp = bigop[i];
-		assert(cmp != 0);
-
-		//insert one row		
-		if ((cmp > 0 && bools[i] == 1) || (cmp < 0 && bools[i] == 0)) {
-			for (unsigned int j = 0; j < nVars; j++) {
-				ind[j + 1] = j + 1;
-				val[j + 1] = bigA(i, vars[j]);
-				//std::cout << bigA(i, vars[j]) << ' ';
-			}
-			glp_set_mat_row(lp, counter, nVars, ind, val);
-			glp_set_row_bnds(lp, counter, GLP_LO, bigb[i], 0);
+		//insert one row
+		for (unsigned int j = 0; j < nVars; j++) {
+			ind[j + 1] = j + 1;
+			val[j + 1] = matA(i, j);
+			//std::cout << matA(i, j) << ' ';
+		}
+		glp_set_mat_row(lp, i + 1, nVars, ind, val);
+		if (rowop[i] > 0) {
+			// GT or GE
+			glp_set_row_bnds(lp, i + 1, GLP_LO, colb(i), 0);
 			//std::cout << "LO ";
 			//std::cout << bigb[i] << std::endl;
-		} else {
-			for (unsigned int j = 0; j < nVars; j++) {
-				ind[j + 1] = j + 1;
-				val[j + 1] = bigA(i, vars[j]);
-				//std::cout << bigA(i, vars[j]) << ' ';
-			}
-			glp_set_mat_row(lp, counter, nVars, ind, val);
-			glp_set_row_bnds(lp, counter, GLP_UP, 0, bigb[i]);
+		} else  if (rowop[i] < 0){
+			// LT or LE
+			glp_set_row_bnds(lp, i + 1, GLP_UP, 0, colb(i));
 			//std::cout << "UP ";
+			//std::cout << bigb[i] << std::endl;
+		} else {
+			// EQ
+			glp_set_row_bnds(lp, i + 1, GLP_FX, 0, 0);
+			//std::cout << "FX ";
 			//std::cout << bigb[i] << std::endl;
 		}
 	}
-	assert(counter == nRows);	
 	delete []ind, delete []val;
 	for (unsigned int i = 1; i < nVars + 1; i++) {
-		if (wordlength > 0)
-			glp_set_col_bnds(lp, i, GLP_DB, -pow(2, wordlength - 1), pow(2, wordlength - 1) - 1);
-		else
-			glp_set_col_bnds(lp, i, GLP_FR, 0, 0);
+		glp_set_col_bnds(lp, i, GLP_FR, 0.0, 0.0);
 	}
 
 	// get a smallest lattice-cube contains the polytope
@@ -311,13 +356,17 @@ const double volce::solver::bound_computation(int *bools, unsigned int nRows, st
 		}
 		
 		// zero lattices
-		if (max[i] < min[i]) return 0;
+		if (max[i] < min[i]) {
+			glp_delete_prob(lp);
+			return 0;
+		}
 	}
 
 	glp_delete_prob(lp);
 	
 	double err = 0;
 	for (unsigned int i = 0; i < nVars; i++) {
+		//std::cout << i << ' ' << max[i] << ' ' << min[i] << std::endl;
 		err += 1.0 / (max[i] - min[i] + 1);
 	}
 	for (unsigned int i = 0; i < nVars; i++) {
@@ -338,8 +387,10 @@ const volce::VOL_RES_CLS volce::solver::volume_estimation_basic(int *bools, unsi
 	//nRows: the number of "decided" linear formulas
 	//nFormulas: the number of linear formulas
 	//bools[nFormulas], vars[nVars]
-	unsigned int nVars = vars.size();
-	double err = bound_computation(bools, nRows, vars);
+	mat_init(bools, nRows, vars);
+	if (gauss_elimination() == 0)
+		return VOL_RES_CLS(1, 1, 1);
+	double err = bound_computation();
 	
 	//bound checking
 	if (err < 0) {
@@ -348,63 +399,37 @@ const volce::VOL_RES_CLS volce::solver::volume_estimation_basic(int *bools, unsi
 	
 	//update stats of vol calls
 	stats_vol_calls++;
-	stats_total_dims += nVars;
-	if (nVars > stats_max_dims) stats_max_dims = nVars;
+	stats_total_dims += matA.n_cols;
+	if (matA.n_cols > stats_max_dims) stats_max_dims = matA.n_cols;
 
 	//estimating
-	if (wordlength > 0) nRows += 2 * nVars;
-	
-	polyvest::polytope p(nRows, nVars);
+	polyvest::polytope p(matA.n_rows, matA.n_cols);
 	
 	p.msg_off = true;
 	p.check_planes_off = true;
 	
-	unsigned int counter = 0;
-	
-	//add boundaries
-	//Disable bounds when wordlength == 0
-	if (wordlength > 0){
-		for(unsigned int i = 0; i < nVars; i++){
-			//Xi <= 2^(wordlength-1) - 1;
-			p.b(counter) = pow(2, wordlength - 1) - 1;
-			p.A.row(counter) = arma::zeros<arma::rowvec>(nVars);
-			p.A(counter, i) = -1;
-			counter++;
-			//-Xi <= 2^(wordlength-1)
-			p.b(counter) = pow(2, wordlength - 1);
-			p.A.row(counter) = arma::zeros<arma::rowvec>(nVars);
-			p.A(counter, i) = 1;
-			counter++;
-		}
-	}
-	
-	for(unsigned int i = 0; i < nFormulas; i++){
-		if (bools[i] < 0) continue;
-		
-		int cmp = bigop[i];
-		assert(cmp != 0);
+	for(unsigned int i = 0; i < matA.n_rows; i++){
 
 		//insert one row		
-		if ((cmp > 0 && bools[i] == 1) || (cmp < 0 && bools[i] == 0)){
-			p.b(counter) = -bigb[i];
-			for (unsigned int j = 0; j < nVars; j++)
-				p.A(counter, j) = -bigA(i, vars[j]);
-		}else{
-			p.b(counter) = bigb[i];
-			for (unsigned int j = 0; j < nVars; j++)
-				p.A(counter, j) = bigA(i, vars[j]);
-		}
-		
-		for (unsigned int j = 0; j < counter; j++){
-			if (check_all_zeros(p.A.row(counter) + p.A.row(j)) &&
-				p.b(counter) == (-1) * p.b(j)){
+		if (rowop[i] > 0) {
+			p.b(i) = -colb(i);
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				p.A(i, j) = -matA(i, j);
+		} else if (rowop[i] < 0) {
+			p.b(i) = colb(i);
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				p.A(i, j) = matA(i, j);
+		} else assert(rowop[i] != 0);
+/*	
+		for (unsigned int j = 0; j < i; j++){
+			if (check_all_zeros(p.A.row(i) + p.A.row(j)) &&
+				p.b(i) == (-1) * p.b(j)){
 				//degenerate
 				//std::cout << "DEGENERATE" << std::endl;
 				return VOL_RES_CLS(0, err, -err);
 			}
 		}
-		
-		counter++;
+*/
 	}
 
 	if (p.Preprocess()){
@@ -420,27 +445,18 @@ const volce::VOL_RES_CLS volce::solver::volume_estimation_basic(int *bools, unsi
 const volce::VOL_RES_CLS volce::solver::volume_estimation(int *boolsol, double epsilon, double delta, double coef){
 	std::vector<int> vars;
 	unsigned int nRows = 0;
-	
-	bool has_eq = false;
-	for (unsigned int i = 0; i < nFormulas; i++){
-		if (boolsol[i] < 0) continue;
-		if (bigop[i] == 0){
-			//equations imply volume of 0
-			if (boolsol[i] == 1)
-				has_eq = true;
-		}else{
-			//cmp == 1 || cmp == 10 || cmp == -1 || cmp == -10
+
+	// count rows	
+	for (unsigned int i = 0; i < nFormulas; i++)
+		if (boolsol[i] >= 0)
 			nRows++;
-		}
-	}
+
+	if (nRows == 0)
+		return VOL_RES_CLS(0, 0, 0);
 	
 	unsigned int nVars_decided_total = get_decided_vars(boolsol, vars);
 
-	if (nRows == 0 || has_eq) {
-		double err = bound_computation(boolsol, nRows, vars);
-		return VOL_RES_CLS(0, err, -err);
-	}
-
+	// no factorization
 	if (!enable_fact){
 		unsigned int nVars_undecided = nVars - nVars_decided_total;
 		
@@ -556,8 +572,15 @@ const volce::VOL_RES_CLS volce::solver::volume_computation_basic(int *bools, uns
 	//nRows: the number of "decided" linear formulas
 	//nFormulas: the number of linear formulas
 	//bools[nFormulas], vars[nVars]
-	unsigned int nVars = vars.size();
-	double err = bound_computation(bools, nRows, vars);
+	mat_init(bools, nRows, vars);
+	if (gauss_elimination() == 0)
+		return VOL_RES_CLS(1, 1, 1);
+/*	for (unsigned int i = 0; i < matA.n_rows; i++) {
+		for (unsigned int j = 0; j < matA.n_cols; j++)
+			std::cout << matA(i, j) << '\t';
+		std::cout << rowop[i] << '\t' << colb(i) << std::endl;
+	}*/
+	double err = bound_computation();
 	
 	//bound checking
 	if (err < 0) {
@@ -566,25 +589,25 @@ const volce::VOL_RES_CLS volce::solver::volume_computation_basic(int *bools, uns
 	
 	//search previous computation result for reusing
 	std::vector<int> bools_vec;
-	for (unsigned int i = 0; i < nFormulas; i++) 
-		bools_vec.push_back(bools[i]);
-	std::map<std::vector<int>, double>::iterator vol_map_iter = vol_map.find(bools_vec);
-	if (vol_map_iter != vol_map.end()) {
-		//result exist
-		stats_vol_reuses++;
-		return VOL_RES_CLS(vol_map_iter->second, vol_map_iter->second + err, vol_map_iter->second - err);
+	if (enable_fact) {
+		for (unsigned int i = 0; i < nFormulas; i++) 
+			bools_vec.push_back(bools[i]);
+		std::map<std::vector<int>, double>::iterator vol_map_iter = vol_map.find(bools_vec);
+		if (vol_map_iter != vol_map.end()) {
+			//result exist
+			stats_vol_reuses++;
+			return VOL_RES_CLS(vol_map_iter->second, vol_map_iter->second + err, vol_map_iter->second - err);
+		}
 	}
 	
 	//update stats of vol calls
 	stats_vol_calls++;
-	stats_total_dims += nVars;
-	if (nVars > stats_max_dims) stats_max_dims = nVars;
+	stats_total_dims += matA.n_cols;
+	if (matA.n_cols > stats_max_dims) stats_max_dims = matA.n_cols;
 	
 	// compute
 	std::string filename = tooldir + "/vinci_input_tmp"; //.ine
 
-	if (wordlength > 0) nRows += 2 * nVars;
-	
 	std::ofstream ofile;
 	
 	ofile.open(filename + ".ine");
@@ -592,42 +615,37 @@ const volce::VOL_RES_CLS volce::solver::volume_computation_basic(int *bools, uns
 		err_open_file(filename);
 	}
 
+	//set printf format
+	ofile.setf(std::ios::fixed, std::ios::floatfield);
+
 	ofile << "H-representation" << std::endl;
 	ofile << "begin" << std::endl;
-	ofile << nRows << " " << nVars + 1 << " real" << std::endl;
-			
-	//add boundaries
-	//Disable bounds when wordlength == 0
-	if (wordlength > 0) {
-		for (unsigned int i = 0; i < nVars; i++){
-			ofile << pow(2, wordlength - 1) - 1 << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << ((i == j) ? "-1 " : "0 ");
-			ofile << std::endl;
-			ofile << pow(2, wordlength - 1) << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << ((i == j) ? "1 " : "0 ");
-			ofile << std::endl;
-		}
-	}
+	ofile << matA.n_rows << " " << matA.n_cols + 1 << " real" << std::endl;
 	
-	for(unsigned int i = 0; i < nFormulas; i++) {
-		if(bools[i] < 0) continue;
+	for(unsigned int i = 0; i < matA.n_rows; i++) {
 
-		//insert one row
-		int cmp = bigop[i];
-		assert(cmp != 0);	//if (cmp == 0) continue;
-		
-		if ((cmp > 0 && bools[i] == 1) || (cmp < 0 && bools[i] == 0)){
-			ofile << -bigb[i] << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << bigA(i, vars[j]) << " ";
+		if (rowop[i] > 0) {
+			ofile << -colb[i] << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << matA(i, j) << " ";
 			ofile << std::endl;
-		}else{
-			ofile << bigb[i] << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << -bigA(i, vars[j]) << " ";
+		} else if (rowop[i] < 0) {
+			ofile << colb[i] << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << -matA(i, j) << " ";
 			ofile << std::endl;
+		} else {
+			assert(rowop[i] != 0);
+/*
+			ofile << -colb[i] << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << matA(i, j) << " ";
+			ofile << std::endl;
+			ofile << colb[i] << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << -matA(i, j) << " ";
+			ofile << std::endl;
+*/
 		}
 	}
 	
@@ -653,9 +671,11 @@ const volce::VOL_RES_CLS volce::solver::volume_computation_basic(int *bools, uns
 	
 	ifile.close();	
 	
-	//new entry
-	vol_map.insert(std::pair<std::vector<int>, double>(bools_vec, vol));
-	std::cout << vol << ' ' << err << std::endl;
+	if (enable_fact) {
+		//new entry
+		vol_map.insert(std::pair<std::vector<int>, double>(bools_vec, vol));
+	}
+	//std::cout << vol << ' ' << err << std::endl;
 	return VOL_RES_CLS(vol, vol + err, vol - err);
 	
 }
@@ -666,26 +686,17 @@ const volce::VOL_RES_CLS volce::solver::volume_computation(int *boolsol){
 	unsigned int nRows = 0;
 	volce::VOL_RES_CLS vol = VOL_RES_CLS(1, 1, 1);
 	
-	bool has_eq = false;
-	for (unsigned int i = 0; i < nFormulas; i++){
-		if (boolsol[i] < 0) continue;
-		if (bigop[i] == 0){
-			//equations imply volume of 0
-			if (boolsol[i] == 1)
-				has_eq = true;
-		}else{
-			//cmp == 1 || cmp == 10 || cmp == -1 || cmp == -10
+	// count rows
+	for (unsigned int i = 0; i < nFormulas; i++)
+		if (boolsol[i] >= 0) 
 			nRows++;
-		}
-	}
+
+	if (nRows == 0)
+		return VOL_RES_CLS(0, 0, 0);
 	
 	unsigned int nVars_decided_total = get_decided_vars(boolsol, vars);
 	
-	if (nRows == 0 || has_eq) {
-		double err = bound_computation(boolsol, nRows, vars);
-		return VOL_RES_CLS(0, err, -err);
-	}
-
+	// no factorization
 	if (!enable_fact){
 		unsigned int nVars_undecided = nVars - nVars_decided_total;
 		
@@ -755,11 +766,11 @@ const double volce::solver::lattice_counting_light(int *bools, int var){
 	stats_vol_calls++;
 	stats_total_dims++;
 
-	long max, min;
+	double max, min;
 
 	if (wordlength == 0){
-		max = std::numeric_limits<long>::max();
-		min = std::numeric_limits<long>::min();
+		max = std::numeric_limits<double>::max();
+		min = -std::numeric_limits<double>::max();
 	}else{
 		max = pow(2, wordlength - 1) - 1;
 		min = -pow(2, wordlength - 1);
@@ -801,8 +812,8 @@ const double volce::solver::lattice_counting_light(int *bools, int var){
 		}
 	}
 	
-	if (max == std::numeric_limits<long>::max() ||
-		min == std::numeric_limits<long>::min()) {
+	if (max == std::numeric_limits<double>::max() ||
+		min == -std::numeric_limits<double>::max()) {
 		err_unbounded_polytope();
 	}
 	
@@ -815,34 +826,36 @@ const double volce::solver::lattice_counting_basic(int *bools, unsigned int nRow
 	//nRows: the number of "decided" linear formulas
 	//nFormulas: the number of linear formulas
 	//bools[nFormulas], vars[nVars]
-	unsigned int nVars = vars.size();
-	double err = bound_computation(bools, nRows, vars);
+	mat_init(bools, nRows, vars);
+	if (gauss_elimination() == 0)
+		return 1;	// only one solution
+	double err = bound_computation();
 	
 	//bound checking
 	if (err < 0) {
 		err_unbounded_polytope();
 	}
-	
+
 	//search previous counting result for reusing
 	std::vector<int> bools_vec;
-	for (unsigned int i = 0; i < nFormulas; i++) 
-		bools_vec.push_back(bools[i]);
-	std::map<std::vector<int>, double>::iterator vol_map_iter = vol_map.find(bools_vec);
-	if (vol_map_iter != vol_map.end()) {
-		//result exist
-		stats_vol_reuses++;
-		return vol_map_iter->second;
+	if (enable_fact) {
+		for (unsigned int i = 0; i < nFormulas; i++) 
+			bools_vec.push_back(bools[i]);
+		std::map<std::vector<int>, double>::iterator vol_map_iter = vol_map.find(bools_vec);
+		if (vol_map_iter != vol_map.end()) {
+			//result exist
+			stats_vol_reuses++;
+			return vol_map_iter->second;
+		}
 	}
 
 	//update stats of vol calls
 	stats_vol_calls++;
-	stats_total_dims += nVars;
-	if (nVars > stats_max_dims) stats_max_dims = nVars;
+	stats_total_dims += matA.n_cols;
+	if (matA.n_cols > stats_max_dims) stats_max_dims = matA.n_cols;
 	
 	//counting
 	std::string filename = tooldir + "/latte_input_tmp"; //.ine
-
-	if (wordlength > 0) nRows += 2 * nVars;
 	
 	std::ofstream ofile;
 	
@@ -851,70 +864,58 @@ const double volce::solver::lattice_counting_basic(int *bools, unsigned int nRow
 		err_open_file(filename);
 	}
 
-	ofile << nRows << " " << nVars + 1 << std::endl;
-			
-	//add boundaries
-	//Disable bounds when wordlength == 0
-	if (wordlength > 0){
-		for (unsigned int i = 0; i < nVars; i++){
-			ofile << pow(2, wordlength - 1) - 1 << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << ((i == j) ? "1 " : "0 ");
-			ofile << std::endl;
-			ofile << pow(2, wordlength - 1) << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << ((i == j) ? "-1 " : "0 ");
-			ofile << std::endl;
-		}
-	}
-	
-	for(unsigned int i = 0; i < nFormulas; i++) {
-		if(bools[i] < 0) continue;
+	//set printf format
+	ofile.setf(std::ios::fixed, std::ios::floatfield);
+	ofile.precision(0);
 
-		//insert one row
-		int cmp = bigop[i];
-		
-		if ((cmp == 1 && bools[i] == 1) || (cmp == -10 && bools[i] == 0)){
+	ofile << matA.n_rows << " " << matA.n_cols + 1 << std::endl;
+	
+	for(unsigned int i = 0; i < matA.n_rows; i++) {
+
+		if (rowop[i] == 1){
 			//GT
-			ofile << (-1) * (bigb[i] + 1) << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << (-1) * bigA(i, vars[j]) << " ";
+			ofile << (-1) * (colb[i] * 1000000 + 1)  << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << (-1) * matA(i, j) * 1000000 << " ";
 			ofile << std::endl;
-		}else if ((cmp == 1 && bools[i] == 0) || (cmp == -10 && bools[i] == 1)){
+		}else if (rowop[i] == -10){
 			//LE
-			ofile << bigb[i] << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << bigA(i, vars[j]) << " ";
+			ofile << colb[i] * 1000000 << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << matA(i, j) * 1000000 << " ";
 			ofile << std::endl;
-		}else if ((cmp == 10 && bools[i] == 1) || (cmp == -1 && bools[i] == 0)){
+		}else if (rowop[i] == 10){
 			//GE
-			ofile << (-1) * bigb[i] << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << (-1) * bigA(i, vars[j]) << " ";
+			ofile << (-1) * colb[i] * 1000000 << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << (-1) * matA(i, j) * 1000000 << " ";
 			ofile << std::endl;
-		}else if ((cmp == 10 && bools[i] == 0) || (cmp == -1 && bools[i] == 1)){
+		}else if (rowop[i] == -1){
 			//LT
-			ofile << bigb[i] - 1 << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << bigA(i, vars[j]) << " ";
+			ofile << colb[i] * 1000000 - 1 << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << matA(i, j) * 1000000 << " ";
 			ofile << std::endl;
-		}else if (cmp == 0){
+		} else {
 			//EQ = LE + GE
-			ofile << (-1) * bigb[i] << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << (-1) * bigA(i, vars[j]) << " ";
+			assert(rowop[i] != 0);
+/*			
+			ofile << colb[i] * 1000000 << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << matA(i, j) * 1000000 << " ";
 			ofile << std::endl;
-			ofile << bigb[i] << " ";
-			for (unsigned int j = 0; j < nVars; j++)
-				ofile << bigA(i, vars[j]) << " ";
+			ofile << (-1) * colb[i] * 1000000 << " ";
+			for (unsigned int j = 0; j < matA.n_cols; j++)
+				ofile << (-1) * matA(i, j) * 1000000 << " ";
 			ofile << std::endl;
+*/
 		}
 	}
 	
 	ofile.close();
 
 	//execute latte
-	std::string cmd = tooldir + "/count --homog " + filename + " >/dev/null 2>/dev/null";
+	std::string cmd = tooldir + "/count " + filename + " >/dev/null 2>/dev/null";
 	int proc = system(cmd.c_str());
 	
 	//read result
@@ -930,10 +931,12 @@ const double volce::solver::lattice_counting_basic(int *bools, unsigned int nRow
 	ifile >> count;
 	
 	ifile.close();
-	
-	//new entry
-	vol_map.insert(std::pair<std::vector<int>, double>(bools_vec, count));
-	
+
+	if (enable_fact) {
+		//new entry
+		vol_map.insert(std::pair<std::vector<int>, double>(bools_vec, count));
+	}
+	//std::cout << count << std::endl;
 	return count;
 }
 
@@ -942,14 +945,17 @@ const double volce::solver::lattice_counting(int *boolsol){
 	unsigned int nRows = 0;
 	double count = 1;
 	
-	for (unsigned int i = 0; i < nFormulas; i++){
-		if (boolsol[i] < 0) continue;
-		nRows++;
-	}
-	if (nRows == 0) return 0;
+	// count rows
+	for (unsigned int i = 0; i < nFormulas; i++)
+		if (boolsol[i] >= 0)
+			nRows++;
+
+	if (nRows == 0) 
+		return 0;
 
 	unsigned int nVars_decided_total = get_decided_vars(boolsol, vars);
 
+	// no factorization
 	if (!enable_fact){
 		unsigned int nVars_undecided = nVars - nVars_decided_total;
 		//cout << "The number of decided variables: " << vars.size() << std::endl;

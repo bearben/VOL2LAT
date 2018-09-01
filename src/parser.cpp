@@ -306,11 +306,11 @@ volce::CMD_TYPE volce::solver::parse_command() {
 			res = mk_bool_decl(name);
 		} else if (type == "Int") {
 			if (logic_not_set()) logic = QF_LIA;
-			if (!islia()) err_logic(type, type_ln);
+			//if (!islia()) err_logic(type, type_ln);
 			res = mk_var_decl(name);
 		} else if (type == "Real") {
 			if (logic_not_set()) logic = QF_LRA;
-			if (!islra()) err_logic(type, type_ln);
+			//if (!islra()) err_logic(type, type_ln);
 			res = mk_var_decl(name);
 		} else {
 			err_unkwn_sym(type, type_ln);
@@ -341,11 +341,11 @@ volce::CMD_TYPE volce::solver::parse_command() {
 			res = mk_bool_decl(name);
 		} else if (type == "Int") {
 			if (logic_not_set()) logic = QF_LIA;
-			if (!islia()) err_logic(type, type_ln);
+			//if (!islia()) err_logic(type, type_ln);
 			res = mk_var_decl(name);
 		} else if (type == "Real") {
 			if (logic_not_set()) logic = QF_LRA;
-			if (!islra()) err_logic(type, type_ln);
+			//if (!islra()) err_logic(type, type_ln);
 			res = mk_var_decl(name);
 		} else {
 			err_unkwn_sym(type, type_ln);
@@ -383,11 +383,11 @@ volce::CMD_TYPE volce::solver::parse_command() {
 			isbool = true;
 		} else if (type == "Int") {
 			if (logic_not_set()) logic = QF_LIA;
-			if (!islia()) err_logic(type, type_ln);
-			else isbool = false;
+			//if (!islia()) err_logic(type, type_ln);
+			//else isbool = false;
 		} else if (type == "Real") {
-			if (!islra()) err_logic(type, type_ln);
-			else isbool = false;
+			//if (!islra()) err_logic(type, type_ln);
+			//else isbool = false;
 		} else {
 			err_unkwn_sym(type, type_ln);
 		}
