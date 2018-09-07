@@ -1,6 +1,6 @@
 #-----Macros---------------------------------
 
-EXEC = volce3
+EXEC = vol2lat
 
 INCLUDE_FLAGS = -Iusr/include -Isrc -Iz3-master/include
 LIB_FLAGS = z3-master/lib/libz3.so -lglpk -larmadillo -lm -ldl
