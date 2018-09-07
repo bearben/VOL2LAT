@@ -37,6 +37,11 @@ Build and install [LattE](https://www.math.ucdavis.edu/~latte/), then move the e
 
 **Note:** On older versions of Ubuntu, you may need install g++-4.8 (or higher version) by hand.
 
+## Build status
+This release of VolCE has been successfully built on the following operating systems:
+* Ubuntu 18.04 on 64-bit with g++ 7.3.0
+* Ubuntu 14.04 on 64-bit with g++ 4.8.4
+
 ### Questions/Feedback/Comments ###
 Please contact:
 
