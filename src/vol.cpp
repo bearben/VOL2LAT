@@ -560,10 +560,10 @@ const volce::VOL_RES_CLS volce::solver::volume_computation_light(int *bools, int
 	} 
 	
 	double lat = lattice_counting_light(bools, var);
-	if ((max - min) < 0) return VOL_RES_CLS(0, lat, lat);
+	if ((max - min) < 0) return VOL_RES_CLS(lat, lat, lat);
 	else {
 		//std::cout << "light:" << max - min << ' ' << lat << std::endl;
-		return VOL_RES_CLS(max - min, lat, lat);
+		return VOL_RES_CLS(lat, lat, lat);
 	}
 }
 

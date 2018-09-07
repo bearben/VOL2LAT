@@ -91,6 +91,7 @@ public:
 	//method
 	VOL_RES_CLS() { value = 0; upper = 0; lower = 0; };
 	VOL_RES_CLS(double v, double u, double l) {
+		if (v < 0) std::cout << v << std::endl;
 		assert(v >= 0);
 		value = v;
 		if (u < 0) upper = 0;
