@@ -25,6 +25,11 @@ void volce::solver::z3_init() {
 	//init volume routine
 	vol_init();
 	
+	//for (unsigned int i = 0; i < ineq_list.size(); i++) {
+		//print_ineq(i);
+		//std::cout << std::endl;
+	//}
+	
 	//make z3 variables, bool, numeric and ineqs
 	for (unsigned int i = 0; i < vbool_list.size(); i++)
 		vbool_expr.push_back(z3context.bool_const(vbool_list.name(i).c_str()));
@@ -102,10 +107,10 @@ z3::expr volce::solver::z3_mk_term(const term t) {
 
 z3::expr volce::solver::z3_mk_nconst(const double val) {
 
-	if (islia()) {
+//	if (islia()) {
 		//int const
-		return z3context.int_val((int)val);
-	} else {
+//		return z3context.int_val((int)val);
+//	} else {
 		//real const
 		char num[STRLEN];
 		sprintf(num, "%.8g", val);
@@ -115,7 +120,7 @@ z3::expr volce::solver::z3_mk_nconst(const double val) {
 				while (num[i] != 0)
 					num[i] = num[i + 1], i++;
 		return z3context.real_val(num);
-	}
+//	}
 
 }
 
