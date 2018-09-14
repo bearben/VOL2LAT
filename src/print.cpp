@@ -117,7 +117,7 @@ void volce::solver::print_ineq(unsigned int index) {
 	if (ie.iseq()) std::cout << "(=";
 	else std::cout << "(<=";
 	
-	if (ie.size() > 0) std::cout << " (+";
+	if (ie.size() > 1) std::cout << " (+";
 	
 	for (unsigned int j = 0; j < ie.size(); j++)
 		if (ie[j].m == 1) std::cout << ' ' << vnum_list.name(ie[j].id);
@@ -129,7 +129,7 @@ void volce::solver::print_ineq(unsigned int index) {
 			std::cout << ' ' << vnum_list.name(ie[j].id) << ')';
 		}
 		
-	if (ie.size() > 0) std::cout << ')';
+	if (ie.size() > 1) std::cout << ')';
 	
 	if (ie.get_const_r() < 0) std::cout << " (- " << -ie.get_const_r() << ")))";
 	else if (ie.get_const_r() == 0) std::cout << " 0))";
