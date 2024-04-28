@@ -303,21 +303,31 @@ const double volce::solver::bound_computation() {
 			//std::cout << matA(i, j) << ' ';
 		}
 		glp_set_mat_row(lp, i + 1, nVars, ind, val);
-		if (rowop[i] > 0) {
-			// GT or GE
+		if (rowop[i] == 1) {
+			// GT
+			glp_set_row_bnds(lp, i + 1, GLP_LO, colb(i) + 0.000001, 0);
+			//std::cout << "LO ";
+			//std::cout << colb(i) + 0.000001 << std::endl;
+		} else if (rowop[i] == 10) {
+			// GE
 			glp_set_row_bnds(lp, i + 1, GLP_LO, colb(i), 0);
 			//std::cout << "LO ";
-			//std::cout << bigb[i] << std::endl;
-		} else  if (rowop[i] < 0){
-			// LT or LE
+			//std::cout << colb(i) << std::endl;
+		} else if (rowop[i] == -1){
+			// LT
+			glp_set_row_bnds(lp, i + 1, GLP_UP, 0, colb(i) - 0.000001);
+			std::cout << "UP ";
+			std::cout << colb(i) - 0.000001 << std::endl;
+		} else if (rowop[i] == -10) {
+			// LE
 			glp_set_row_bnds(lp, i + 1, GLP_UP, 0, colb(i));
 			//std::cout << "UP ";
-			//std::cout << bigb[i] << std::endl;
+			//std::cout << colb(i) << std::endl;
 		} else {
 			// EQ
 			glp_set_row_bnds(lp, i + 1, GLP_FX, 0, 0);
 			//std::cout << "FX ";
-			//std::cout << bigb[i] << std::endl;
+			//std::cout << colb(i) << std::endl;
 		}
 	}
 	delete []ind, delete []val;
@@ -336,6 +346,7 @@ const double volce::solver::bound_computation() {
 	
 		if (glp_get_status(lp) == GLP_UNBND) {
 			//no upper bound, return negative number
+			std::cout << "UNBOUND\n";
 			glp_delete_prob(lp);
 			return -1;
 		} else {
@@ -349,6 +360,7 @@ const double volce::solver::bound_computation() {
 	
 		if (glp_get_status(lp) == GLP_UNBND) {
 			//no lower bound, return negative number
+			std::cout << "UNBOUND\n";
 			glp_delete_prob(lp);
 			return -1;
 		} else {
@@ -369,10 +381,15 @@ const double volce::solver::bound_computation() {
 		//std::cout << i << ' ' << max[i] << ' ' << min[i] << std::endl;
 		err += 1.0 / (max[i] - min[i] + 1);
 	}
+	//double tmp = 1;
 	for (unsigned int i = 0; i < nVars; i++) {
 		err *= (max[i] - min[i] + 1);
+		//tmp *= (max[i] - min[i] + 1);
 	}
 	err *= 2;
+	
+	//std::cout << "ERR: " << err << ' ' << tmp << std::endl;
+	
 	return err;
 
 }

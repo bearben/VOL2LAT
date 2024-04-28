@@ -8,12 +8,14 @@
  *  See COPYING for more information on using this software.
  */
 
-
+#include <chrono>
 #include <solver.h>
 
 #define MAX_DIRSTR_SIZE 255
 
 using namespace std;
+
+typedef std::chrono::high_resolution_clock Clock;
 
 void printUsage(char* exec_name){
 	cout << endl;
@@ -74,6 +76,8 @@ double cal_coef(double vol, double mvol, double minc, double maxc){
 }
 
 int main(int argc, char **argv) {
+
+	auto t1 = Clock::now();
 
 	bool 	polyvest 	= false;
 	bool 	vinci 		= false;
@@ -532,55 +536,58 @@ int main(int argc, char **argv) {
   	}
   	cout << endl << "====================================" << endl << endl;
   	
+  	auto t2 = Clock::now();
   	
   	//print to output
 
   	ofstream fout(output_file, std::ios::app);
    	if (latte) {
-   		fout //<< input_file << ' '
+   		fout << input_file << ' '
   			<< total_latte << ' ' 
-  			<< s.vbool_list.size() << ' ' 
-			<< s.vnum_list.size() << ' '
-			<< s.ineq_list.size() << ' '
-			<< s.bunch_list.size() << ' '
-			<< s.stats_fact_bunches << ' '
-			<< s.stats_vol_calls << ' '
-			<< s.stats_vol_reuses << ' ' 
-			<< (double)s.stats_total_dims / s.stats_vol_calls << ' '
-			<< s.stats_max_dims << endl;
+  			//<< s.vbool_list.size() << ' ' 
+			//<< s.vnum_list.size() << ' '
+			//<< s.ineq_list.size() << ' '
+			//<< s.bunch_list.size() << ' '
+			//<< s.stats_fact_bunches << ' '
+			//<< s.stats_vol_calls << ' '
+			//<< s.stats_vol_reuses << ' ' 
+			//<< (double)s.stats_total_dims / s.stats_vol_calls << ' '
+			//<< s.stats_max_dims << ' '
+			<< (double)chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1000000000 << endl;
    	}
   	if (vinci) {
-  	  	fout //<< input_file << ' '
+  	  	fout << input_file << ' '
   			<< total_vinci.value << ' ' 
   			<< total_vinci.lower << ' '
   			<< total_vinci.upper << ' '
-  			<< s.vbool_list.size() << ' ' 
-			<< s.vnum_list.size() << ' '
-			<< s.ineq_list.size() << ' '
-			<< s.bunch_list.size() << ' '
-			<< s.stats_fact_bunches << ' '
-			<< s.stats_vol_calls << ' '
-			<< s.stats_vol_reuses << ' ' 
-			<< (double)s.stats_total_dims / s.stats_vol_calls << ' '
-			<< s.stats_max_dims << endl;
+  			//<< s.vbool_list.size() << ' ' 
+			//<< s.vnum_list.size() << ' '
+			//<< s.ineq_list.size() << ' '
+			//<< s.bunch_list.size() << ' '
+			//<< s.stats_fact_bunches << ' '
+			//<< s.stats_vol_calls << ' '
+			//<< s.stats_vol_reuses << ' ' 
+			//<< (double)s.stats_total_dims / s.stats_vol_calls << ' '
+			//<< s.stats_max_dims << ' '
+			<< (double)chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1000000000 << endl;
   	}
   	if (polyvest){
-  		fout //<< input_file << ' '
+  		fout << input_file << ' '
   			<< total_polyvest.value << ' '
   			<< total_polyvest.lower << ' '
   			<< total_polyvest.upper << ' ' 
-  			<< s.vbool_list.size() << ' ' 
-			<< s.vnum_list.size() << ' '
-			<< s.ineq_list.size() << ' '
-			<< s.bunch_list.size() << ' '
-			<< s.stats_fact_bunches << ' '
-			<< s.stats_vol_calls << ' '
-			<< s.stats_vol_reuses << ' ' 
-			<< (double)s.stats_total_dims / s.stats_vol_calls << ' '
-			<< s.stats_max_dims << endl;
+  			//<< s.vbool_list.size() << ' ' 
+			//<< s.vnum_list.size() << ' '
+			//<< s.ineq_list.size() << ' '
+			//<< s.bunch_list.size() << ' '
+			//<< s.stats_fact_bunches << ' '
+			//<< s.stats_vol_calls << ' '
+			//<< s.stats_vol_reuses << ' ' 
+			//<< (double)s.stats_total_dims / s.stats_vol_calls << ' '
+			//<< s.stats_max_dims << ' '
+			<< (double)chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count() / 1000000000 << endl;
   	}
   	fout.close();
-
 	
 	//////////////////////////////////////////////////////////////////////
 
